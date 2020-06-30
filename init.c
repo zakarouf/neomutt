@@ -52,6 +52,7 @@
 #include "hcache/lib.h"
 #include "history/lib.h"
 #include "notmuch/lib.h"
+#include "preview/lib.h"
 #include "store/lib.h"
 #include "command_parse.h"
 #include "context.h"
@@ -750,6 +751,8 @@ int mutt_init(struct ConfigSet *cs, bool skip_sys_rc, struct ListHead *commands)
 #ifdef USE_NOTMUCH
   nm_init();
 #endif
+
+  preview_init();
 
   snprintf(AttachmentMarker, sizeof(AttachmentMarker), "\033]9;%" PRIu64 "\a", // Escape
            mutt_rand64());
