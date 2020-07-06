@@ -86,6 +86,8 @@ const char *win_name(const struct MuttWindow *win)
       return "Pager";
     case WT_PAGER_BAR:
       return "Pager Bar";
+    case WT_PREVIEW:
+      return "Preview";
     case WT_ROOT:
       return "Root Dialog";
     case WT_SIDEBAR:
