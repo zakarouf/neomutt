@@ -52,7 +52,9 @@
 #include "hcache/lib.h"
 #include "history/lib.h"
 #include "notmuch/lib.h"
+#ifdef USE_DEVEL_PREVIEW
 #include "preview/lib.h"
+#endif
 #include "store/lib.h"
 #include "command_parse.h"
 #include "context.h"
@@ -745,11 +747,13 @@ int mutt_init(struct ConfigSet *cs, bool skip_sys_rc, struct ListHead *commands)
   TagFormats = mutt_hash_new(64, MUTT_HASH_NO_FLAGS);
 
   mutt_menu_init();
+#ifdef USE_DEVEL_PREVIEW
   // XXX: Order matters here because the sidebar does not know the preview.
   // In this order, the Sidebar will receive the notification first and thus will
   // setup itself appropriatly.
   // We can then handle in the preview whether the Sidebar is configured or not.
   preview_init();
+#endif
 #ifdef USE_SIDEBAR
   sb_init();
 #endif
