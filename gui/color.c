@@ -134,8 +134,10 @@ const struct Mapping Fields[] = {
   { "sidebar_spoolfile", MT_COLOR_SIDEBAR_SPOOLFILE },
   { "sidebar_unread",    MT_COLOR_SIDEBAR_UNREAD },
 #endif
+#ifdef USE_DEVEL_PREVIEW
   // Preview
   { "devel_preview_divider", MT_COLOR_PREVIEW_DIVIDER},
+#endif
   // < Preview
   { "signature",         MT_COLOR_SIGNATURE },
   { "status",            MT_COLOR_STATUS },
