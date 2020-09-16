@@ -4174,13 +4174,17 @@ int mutt_dlgindex_observer(struct NotifyCallback *nc)
     if ((C_StatusOnTop && (first == win_index)) || (!C_StatusOnTop && (first != win_index)))
     {
       // Swap the Index and the Index Bar Windows
-      struct MuttWindow *last = TAILQ_LAST(&parent->children, MuttWindowList);
-
-      TAILQ_REMOVE(&parent->children, first, entries);
-      TAILQ_REMOVE(&parent->children, last, entries);
-
-      TAILQ_INSERT_HEAD(&parent->children, last, entries);
-      TAILQ_INSERT_TAIL(&parent->children, first, entries);
+      if (C_StatusOnTop)
+      {
+        struct MuttWindow *last = TAILQ_LAST(&parent->children, MuttWindowList);
+        TAILQ_REMOVE(&parent->children, last, entries);
+        TAILQ_INSERT_HEAD(&parent->children, last, entries);
+      }
+      else
+      {
+        TAILQ_REMOVE(&parent->children, first, entries);
+        TAILQ_INSERT_TAIL(&parent->children, first, entries);
+      }
     }
 
     parent = win_pager->parent;
