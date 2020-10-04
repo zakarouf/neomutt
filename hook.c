@@ -248,6 +248,12 @@ enum CommandResult mutt_parse_hook_regex(struct Buffer *buf, struct Buffer *s,
 
   mutt_debug(LL_DEBUG1,"SKOM: we're here 159l\n");
 
+  if (data & MUTT_COMMAND_DEPRECATED)
+  {
+    mutt_warning(_("Command '%s' is deprecated"), buf->data);
+    rc = MUTT_CMD_WARNING;
+  }
+
   if (~data & MUTT_GLOBAL_HOOK) /* NOT a global hook */
   {
     if (*s->dptr == '!')
