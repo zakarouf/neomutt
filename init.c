@@ -56,6 +56,7 @@
 #include "command_parse.h"
 #include "context.h"
 #include "functions.h"
+#include "hook.h"
 #include "keymap.h"
 #include "mutt_commands.h"
 #include "mutt_globals.h"
@@ -744,6 +745,7 @@ int mutt_init(struct ConfigSet *cs, bool skip_sys_rc, struct ListHead *commands)
   TagFormats = mutt_hash_new(64, MUTT_HASH_NO_FLAGS);
 
   mutt_menu_init();
+  hook_init();
 #ifdef USE_SIDEBAR
   sb_init();
 #endif
