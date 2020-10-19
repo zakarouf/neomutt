@@ -810,6 +810,8 @@ int main(int argc, char *argv[], char *envp[])
     mutt_buffer_pool_release(&fpath);
   }
 
+  mutt_multi_choice(_("(a)pple, (b)anana, (c)herry"), _("abc"));
+  goto main_ok;
   if (batch_mode)
   {
     goto main_ok; // TEST22: neomutt -B
