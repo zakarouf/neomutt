@@ -58,6 +58,11 @@ void imap_msn_reserve(struct MSN *msn, size_t num)
  */
 void imap_msn_free(struct MSN *msn)
 {
+  struct Email **ep = NULL;
+  ARRAY_FOREACH(ep, msn)
+  {
+      *ep = NULL;
+  }
   ARRAY_FREE(msn);
 }
 
