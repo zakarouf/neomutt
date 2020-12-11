@@ -1780,6 +1780,8 @@ static bool imap_ac_add(struct Account *a, struct Mailbox *m)
 
     m->mdata = mdata;
     m->mdata_free = imap_mdata_free;
+    mdata->mailbox = m;
+    notify_observer_add(m->notify, NT_EMAIL, imap_email_observer, m);
     url_free(&url);
   }
   return true;

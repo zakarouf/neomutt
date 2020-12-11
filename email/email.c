@@ -47,6 +47,13 @@ void email_free(struct Email **ptr)
 
   struct Email *e = *ptr;
 
+  if (e->notify)
+  {
+    struct EventEmail ev_e = { 1, &e };
+    notify_send(e->notify, NT_EMAIL, NT_EMAIL_REMOVE, &ev_e);
+  }
+
+  notify_free(&e->notify);
   if (e->edata && e->edata_free)
     e->edata_free(&e->edata);
 
@@ -80,6 +87,7 @@ struct Email *email_new(void)
   STAILQ_INIT(&e->tags);
   e->visible = true;
   e->sequence = sequence++;
+  e->notify = notify_new();
   return e;
 }
 

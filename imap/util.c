@@ -229,6 +229,12 @@ void imap_mdata_free(void **ptr)
 
   struct ImapMboxData *mdata = *ptr;
 
+  struct Mailbox *m = mdata->mailbox;
+  if (m)
+  {
+    notify_observer_remove(m->notify, imap_email_observer, m);
+  }
+
   imap_mdata_cache_reset(mdata);
   mutt_list_free(&mdata->flags);
   FREE(&mdata->name);
@@ -1295,4 +1301,26 @@ void mutt_seqset_iterator_free(struct SeqsetIterator **ptr)
   struct SeqsetIterator *iter = *ptr;
   FREE(&iter->full_seqset);
   FREE(ptr);
+}
+
+/**
+ * imap_email_observer - Listen for deleted Emails - Implements ::observer_t
+ */
+int imap_email_observer(struct NotifyCallback *nc)
+{
+  if ((nc->event_type != NT_EMAIL) || (nc->event_subtype != NT_EMAIL_REMOVE))
+    return 0;
+
+  struct EventEmail *ev_e = nc->event_data;
+  if (!ev_e)
+    return 0;
+
+  struct Mailbox *m = nc->global_data;
+  struct ImapMboxData *mdata = imap_mdata_get(m);
+  if (!mdata)
+    return 0;
+
+  mutt_debug(LL_NOTIFY, "imap email removal\n");
+
+  return 0;
 }

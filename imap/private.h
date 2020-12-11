@@ -240,6 +240,7 @@ struct ImapMboxData
   struct BodyCache *bcache;
 
   struct HeaderCache *hcache;
+  struct Mailbox *mailbox;
 };
 
 /**
@@ -331,6 +332,7 @@ int imap_hcache_store_uid_seqset(struct ImapMboxData *mdata);
 int imap_hcache_clear_uid_seqset(struct ImapMboxData *mdata);
 char *imap_hcache_get_uid_seqset(struct ImapMboxData *mdata);
 #endif
+int imap_email_observer(struct NotifyCallback *nc);
 
 enum QuadOption imap_continue(const char *msg, const char *resp);
 void imap_error(const char *where, const char *msg);

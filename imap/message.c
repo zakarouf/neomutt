@@ -1145,6 +1145,7 @@ static int read_headers_fetch_new(struct Mailbox *m, unsigned int msn_begin,
 
         struct Email *e = email_new();
         m->emails[idx] = e;
+        notify_set_parent(e->notify, m->notify);
 
         imap_msn_set(&mdata->msn, h.edata->msn - 1, e);
         mutt_hash_int_insert(mdata->uid_hash, h.edata->uid, e);
