@@ -1260,34 +1260,66 @@ static void compose_custom_redraw(struct Menu *menu)
 
 /**
  * compose_attach_swap - Swap two adjacent entries in the attachment list
- * @param[in]  msg   Body of email
- * @param[out] idx   Array of Attachments
- * @param[in]  first Index of first attachment to swap
+ * @param[in]  msg    Body of email
+ * @param[out] actx   Attachment information
+ * @param[in]  first  Index of first attachment to swap
+ * @param[in]  second Index of second attachment to swap
  */
-static void compose_attach_swap(struct Body *msg, struct AttachPtr **idx, short first)
+static void compose_attach_swap(struct Body *msg, struct AttachCtx *actx, short first, short second)
 {
+  struct AttachPtr **idx = actx->idx;
+
+  /* check that attachments really are adjacent */
+  if (idx[first]->body->next != idx[second]->body)
+    return;
+
   /* Reorder Body pointers.
    * Must traverse msg from top since Body has no previous ptr.  */
   for (struct Body *part = msg; part; part = part->next)
   {
     if (part->next == idx[first]->body)
     {
-      idx[first]->body->next = idx[first + 1]->body->next;
-      idx[first + 1]->body->next = idx[first]->body;
-      part->next = idx[first + 1]->body;
+      idx[first]->body->next = idx[second]->body->next;
+      idx[second]->body->next = idx[first]->body;
+      part->next = idx[second]->body;
+      break;
+    }
+    /* also check for multipart groups */
+    if (part->parts == idx[first]->body)
+    {
+      idx[first]->body->next = idx[second]->body->next;
+      idx[second]->body->next = idx[first]->body;
+      part->parts = idx[second]->body;
       break;
     }
   }
 
-  /* Reorder index */
-  struct AttachPtr *saved = idx[first];
-  idx[first] = idx[first + 1];
-  idx[first + 1] = saved;
+  /* Reorder index and ptr->num */
+  struct AttachPtr *savedptr = idx[second];
+  for (int i = second; i > first; i--)
+  {
+    idx[i] = idx[i - 1];
+    idx[i]->num = i;
+  }
+  idx[first] = savedptr;
+  idx[first]->num = first;
 
-  /* Swap ptr->num */
-  int i = idx[first]->num;
-  idx[first]->num = idx[first + 1]->num;
-  idx[first + 1]->num = i;
+  /* if moved attachment is a group then move subparts too */
+  if (idx[first]->body->type == TYPE_MULTIPART)
+  {
+    int i = second + 1;
+    while (idx[i]->level > idx[first]->level)
+    {
+      savedptr = idx[i];
+      idx[i] = idx[i - 1];
+      idx[i]->num = i;
+      idx[i - 1] = savedptr;
+      idx[i - 1]->num = i - 1;
+      i++;
+      if (i >= actx->idxlen)
+        break;
+    }
+  }
 }
 
 /**
@@ -1813,9 +1845,24 @@ int mutt_compose_menu(struct Email *e, struct Buffer *fcc, struct Email *e_cur,
           mutt_error(_("The fundamental part can't be moved"));
           break;
         }
-        compose_attach_swap(e->body, actx->idx, menu->current - 1);
+        if (actx->idx[menu->current - 1]->level < actx->idx[menu->current]->level)
+        {
+          mutt_error(_("Attachment can't be moved out of group"));
+          break;
+        }
+        /* Find previous attachment at current level */
+        short previdx = menu->current - 1;
+        while (previdx > 0 && actx->idx[previdx]->level > actx->idx[menu->current]->level)
+          previdx--;
+        if (previdx == 0)
+        {
+          mutt_error(_("The fundamental part can't be moved"));
+          break;
+        }
+        compose_attach_swap(e->body, actx, previdx, menu->current);
+        mutt_update_tree(actx);
         menu->redraw |= REDRAW_INDEX;
-        menu->current--;
+        menu->current = previdx;
         break;
 
       case OP_COMPOSE_MOVE_DOWN:
@@ -1829,9 +1876,37 @@ int mutt_compose_menu(struct Email *e, struct Buffer *fcc, struct Email *e_cur,
           mutt_error(_("The fundamental part can't be moved"));
           break;
         }
-        compose_attach_swap(e->body, actx->idx, menu->current);
+        if (actx->idx[menu->current + 1]->level < actx->idx[menu->current]->level)
+        {
+          mutt_error(_("Attachment can't be moved out of group"));
+          break;
+        }
+        /* Find next attachment at current level */
+        short nextidx = menu->current + 1;
+        while (nextidx < actx->idxlen && actx->idx[nextidx]->level > actx->idx[menu->current]->level)
+          nextidx++;
+        if (nextidx == actx->idxlen)
+        {
+          mutt_error(_("Attachment is already at bottom"));
+          break;
+        }
+        /* If next attachment is multipart find final position */
+        short finalidx = menu->current + 1;
+        if (actx->idx[finalidx]->body->type == TYPE_MULTIPART)
+        {
+          finalidx++;
+          while (actx->idx[finalidx]->level > actx->idx[menu->current + 1]->level)
+          {
+            finalidx++;
+            if (finalidx >= actx->idxlen)
+              break;
+          }
+          finalidx--;
+        }
+        compose_attach_swap(e->body, actx, menu->current, nextidx);
+        mutt_update_tree(actx);
         menu->redraw |= REDRAW_INDEX;
-        menu->current++;
+        menu->current = finalidx;
         break;
 
       case OP_COMPOSE_GROUP_ALTS:
