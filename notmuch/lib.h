@@ -67,6 +67,7 @@ void  nm_query_window_backward   (void);
 void  nm_query_window_forward    (void);
 int   nm_read_entire_thread      (struct Mailbox *m, struct Email *e);
 int   nm_record_message          (struct Mailbox *m, char *path, struct Email *e);
+int   nm_record_message_non_nm   (char *path, struct Email *e);
 int   nm_update_filename         (struct Mailbox *m, const char *old_file, const char *new_file, struct Email *e);
 char *nm_url_from_query          (struct Mailbox *m, char *buf, size_t buflen);
 bool config_init_notmuch(struct ConfigSet *cs);

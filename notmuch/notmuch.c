@@ -287,6 +287,32 @@ struct NmEmailData *nm_edata_get(struct Email *e)
 }
 
 /**
+ * nm_get_default_url - Get a default Notmuch URL
+ * @retval Notmuch URL
+ * @retval NULL Error, unable to create default URL.
+ */
+static char *nm_get_default_url()
+{
+  // path to DB + query + url "decoration"
+  size_t len = PATH_MAX + 1024 + 32;
+  char *url = mutt_mem_malloc(len);
+
+  // Try to use `$nm_default_url` or `$folder`.
+  // If neither are set, it is impossible to create a Notmuch URL.
+  if (C_NmDefaultUrl)
+    snprintf(url, len, "%s", C_NmDefaultUrl);
+  else if (C_Folder)
+    snprintf(url, len, "notmuch://%s", C_Folder);
+  else
+  {
+    FREE(url);
+    return NULL;
+  }
+
+  return url;
+}
+
+/**
  * nm_get_default_data - Create a Mailbox with default Notmuch settings
  * @retval ptr  Mailbox with default Notmuch settings
  * @retval NULL Error, it's impossible to create an NmMboxData
@@ -294,15 +320,8 @@ struct NmEmailData *nm_edata_get(struct Email *e)
 static struct NmMboxData *nm_get_default_data(void)
 {
   // path to DB + query + url "decoration"
-  char url[PATH_MAX + 1024 + 32];
-
-  // Try to use `$nm_default_url` or `$folder`.
-  // If neither are set, it is impossible to create a Notmuch URL.
-  if (C_NmDefaultUrl)
-    snprintf(url, sizeof(url), "%s", C_NmDefaultUrl);
-  else if (C_Folder)
-    snprintf(url, sizeof(url), "notmuch://%s", C_Folder);
-  else
+  char *url = nm_get_default_url();
+  if (!url)
     return NULL;
 
   return nm_mdata_new(url);
@@ -2126,6 +2145,24 @@ done:
 
   nm_db_release(m);
   return rc;
+}
+
+/**
+ * nm_record_message_non_nm - Add a message to the Notmuch database from a non-Notmuch Mailbox
+ * @param path Path of the email
+ * @param e    Email
+ * @retval  0 Success
+ * @retval -1 Failure
+ */
+int nm_record_message_non_nm(char *path, struct Email *e)
+{
+  // Create a new notmuch mailbox from scratch and add plumbing for DB access.
+  char *default_url = nm_get_default_url();
+  struct Mailbox *m = mx_path_resolve(default_url);
+  init_mailbox(m);
+  mx_mbox_ac_link(m);
+
+  return nm_record_message(m, path, e);
 }
 
 /**

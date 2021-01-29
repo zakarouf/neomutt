@@ -2782,7 +2782,12 @@ int mutt_send_message(SendFlags flags, struct Email *e_templ, const char *tempfi
 #ifdef USE_NOTMUCH
     const bool c_nm_record = cs_subset_bool(sub, "nm_record");
     if (c_nm_record)
-      nm_record_message(mailbox, finalpath, e_cur);
+    {
+      if (mailbox->type != MUTT_NOTMUCH)
+        nm_record_message_non_nm(finalpath, e_cur);
+      else
+        nm_record_message(mailbox, finalpath, e_cur);
+    }
 #endif
     mutt_sleep(0);
   }
