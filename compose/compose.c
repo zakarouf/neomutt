@@ -1337,10 +1337,14 @@ static void compose_attach_swap(struct Body *msg, struct AttachCtx *actx, short 
     while (idx[i]->level > idx[first]->level)
     {
       savedptr = idx[i];
-      idx[i] = idx[i - 1];
-      idx[i]->num = i;
-      idx[i - 1] = savedptr;
-      idx[i - 1]->num = i - 1;
+      int destidx = i - second + first;
+      for (int j = i; j > destidx; j--)
+      {
+        idx[j] = idx[j - 1];
+        idx[j]->num = j;
+      }
+      idx[destidx] = savedptr;
+      idx[destidx]->num = destidx;
       i++;
       if (i >= actx->idxlen)
         break;
@@ -1920,7 +1924,7 @@ int mutt_compose_menu(struct Email *e, struct Buffer *fcc, struct Email *e_cur,
           break;
         }
         /* If next attachment is multipart find final position */
-        short finalidx = menu->current + 1;
+        short finalidx = nextidx;
         if (actx->idx[finalidx]->body->type == TYPE_MULTIPART)
         {
           finalidx++;
@@ -1931,6 +1935,10 @@ int mutt_compose_menu(struct Email *e, struct Buffer *fcc, struct Email *e_cur,
               break;
           }
           finalidx--;
+        }
+        else
+        {
+          finalidx = menu->current + 1;
         }
         compose_attach_swap(e->body, actx, menu->current, nextidx);
         mutt_update_tree(actx);
