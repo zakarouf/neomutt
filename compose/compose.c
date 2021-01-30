@@ -1184,9 +1184,15 @@ static void mutt_update_compose_menu(struct AttachCtx *actx, struct Menu *menu, 
  */
 static void update_idx(struct Menu *menu, struct AttachCtx *actx, struct AttachPtr *ap)
 {
-  ap->level = (actx->idxlen > 0) ? actx->idx[actx->idxlen - 1]->level : 0;
-  if (actx->idxlen)
-    actx->idx[actx->idxlen - 1]->body->next = ap->body;
+  for (short i = actx->idxlen - 1; i > 0; i--)
+  {
+    if (ap->level == actx->idx[i - 1]->level)
+    {
+      actx->idx[i - 1]->body->next = ap->body;
+      break;
+    }
+  }
+
   ap->body->aptr = ap;
   mutt_actx_add_attach(actx, ap);
   mutt_update_compose_menu(actx, menu, false);
@@ -1202,10 +1208,30 @@ static void update_idx(struct Menu *menu, struct AttachCtx *actx, struct AttachP
  */
 static void insert_idx(struct Menu *menu, struct AttachCtx *actx, struct AttachPtr *ap, short aidx)
 {
-  if (aidx > 0 && ap->level == actx->idx[aidx - 1]->level)
-    actx->idx[aidx - 1]->body->next = ap->body;
-  if (aidx < actx->idxlen && ap->level == actx->idx[aidx]->level)
-    ap->body->next = actx->idx[aidx]->body;
+  /* set body pointers */
+  if (aidx > 0)
+  {
+    for (short i = aidx; i > 0; i--)
+    {
+      if (ap->level == actx->idx[i - 1]->level)
+      {
+        actx->idx[i - 1]->body->next = ap->body;
+        break;
+      }
+    }
+  }
+  if (aidx < actx->idxlen)
+  {
+    for (short i = aidx; i < actx->idxlen; i++)
+    {
+      if (ap->level == actx->idx[i]->level)
+      {
+        ap->body->next = actx->idx[i]->body;
+        break;
+      }
+    }
+  }
+
   ap->body->aptr = ap;
   mutt_actx_ins_attach(actx, ap, aidx);
   mutt_update_compose_menu(actx, menu, false);
@@ -1958,12 +1984,13 @@ int mutt_compose_menu(struct Email *e, struct Buffer *fcc, struct Email *e_cur,
 
         struct Body *alts = NULL;
         /* group tagged message into a multipart/alternative */
-        struct Body *bptr = e->body;
+        struct Body *bptr = NULL;
         int gidx = 0;
         int glastidx = 0;
         int glevel = 0;
-        for (int i = 0; bptr;)
+        for (int i = 0; i < actx->idxlen; i++)
         {
+          bptr = actx->idx[i]->body;
           if (bptr->tagged)
           {
             bptr->tagged = false;
@@ -1986,7 +2013,6 @@ int mutt_compose_menu(struct Email *e, struct Buffer *fcc, struct Email *e_cur,
             if (alts)
             {
               alts->next = bptr;
-              bptr = bptr->next;
               alts = alts->next;
               alts->next = NULL;
               // make grouped attachments consecutive
@@ -2015,17 +2041,11 @@ int mutt_compose_menu(struct Email *e, struct Buffer *fcc, struct Email *e_cur,
               glevel = actx->idx[i]->level;
               group->parts = bptr;
               alts = bptr;
-              bptr = bptr->next;
               alts->next = NULL;
             }
 
             actx->idx[glastidx]->level = glevel + 1;
           }
-          else
-          {
-            bptr = bptr->next;
-          }
-          i++;
         }
 
         if (actx->idxlen - 1 > glastidx)
