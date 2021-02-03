@@ -985,6 +985,77 @@ static int read_headers_condstore_qresync_updates(struct ImapAccountData *adata,
 
   return 0;
 }
+
+/**
+ * imap_verify_qresync - Check to see if QRESYNC got jumbled. 
+ * If so, wipe the context and try again with a normal download. 
+ * @param m  Imap Selected Mailbox
+ *
+ * @retval  0 Success
+ * @retval -1 Error
+ */
+// TODO refactor this
+static int imap_verify_qresync(struct Mailbox *m)
+{
+  struct Context *ctx;
+  struct Email *h, *uidh;
+  int i;
+  unsigned int msn;
+
+  ctx = idata->ctx;
+
+  for (i = 0; i < ctx->msgcount; i++)
+  {
+    h = ctx->hdrs[i];
+
+    if (!h)
+      goto fail;
+
+    msn = HEADER_DATA(h)->msn;
+    if ((msn < 1) || (msn > idata->max_msn) ||
+        (idata->msn_index[msn - 1] != h))
+      goto fail;
+
+    uidh = (struct Email *)mutt_hash_int_find (idata->uid_hash, HEADER_DATA(h)->uid);
+    if (uidh != h)
+      goto fail;
+  }
+
+  return 0;
+
+fail:
+  FREE (&idata->msn_index);
+  idata->msn_index_size = 0;
+  idata->max_msn = 0;
+
+  mutt_hash_destroy (&idata->uid_hash, NULL);
+
+  for (i = 0; i < ctx->msgcount; i++)
+  {
+    if (ctx->hdrs[i] && ctx->hdrs[i]->data)
+      imap_free_header_data ((IMAP_HEADER_DATA**)&(ctx->hdrs[i]->data));
+    mutt_header_free (&ctx->hdrs[i]);
+  }
+  ctx->msgcount = 0;
+
+  mutt_hcache_delete (idata->hcache, "/MODSEQ", imap_hcache_keylen);
+  imap_hcache_clear_uid_seqset (idata);
+  imap_hcache_close (idata);
+
+  if (!ctx->quiet)
+  {
+    /* L10N:
+       After opening an IMAP mailbox using QRESYNC, Mutt performs
+       a quick sanity check.  If that fails, Mutt reopens the mailbox
+       using a normal download.
+    */
+    mutt_error _("QRESYNC failed.  Reopening mailbox.");
+    mutt_sleep (0);
+  }
+
+  return -1;
+}
+
 #endif /* USE_HCACHE */
 
 /**
@@ -1270,6 +1341,11 @@ int imap_read_headers(struct Mailbox *m, unsigned int msn_begin,
   if (!adata || (adata->mailbox != m))
     return -1;
 
+
+#ifdef USE_HCACHE
+retry:
+#endif /* USE_HCACHE */
+
   /* make sure context has room to hold the mailbox */
   while (msn_end > m->email_max)
     mx_alloc_memory(m);
@@ -1365,6 +1441,26 @@ int imap_read_headers(struct Mailbox *m, unsigned int msn_begin,
 
   if (read_headers_fetch_new(m, msn_begin, msn_end, evalhc, &maxuid, initial_download) < 0)
     goto bail;
+
+
+#if USE_HCACHE
+  if (eval_qresync && initial_download)
+  {
+    if (imap_verify_qresync(m) != 0)
+    {
+      eval_qresync = false;
+      eval_condstore = false;
+      evalhc = false;
+      hc_modseq = 0;
+      maxuid = 0;
+      FREE (&uid_seqset);
+      uid_validity = NULL;
+      uid_next = 0;
+
+      goto retry;
+    }
+  }
+#endif /* USE_HCACHE */
 
   if (maxuid && (mdata->uid_next < maxuid + 1))
     mdata->uid_next = maxuid + 1;
